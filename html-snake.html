@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>งูโค้ด — เกมงูฝึก HTML เบื้องต้น</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0b0620; --indigo:#1d1042; --violet:#2a1658;
+  --gold:#f6c945; --gold2:#e8912d; --ruby:#e63946; --jade:#2fd3a0; --lotus:#ff9ad5;
+  --panel:rgba(20,10,50,.72); --line:rgba(246,201,69,.55);
+  --font:'Kanit','Sarabun',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:#fff;font-family:var(--font)}
+canvas#game{position:fixed;inset:0;display:block;touch-action:none;cursor:crosshair}
+.hidden{display:none!important}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+.panel{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#qcard{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:min(92vw,720px);padding:10px 18px 12px;text-align:center;
+  background:linear-gradient(180deg,rgba(60,26,110,.88),rgba(20,10,50,.86));border:2px solid var(--gold);border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 0 4px rgba(246,201,69,.12)}
+#qcard:before,#qcard:after{content:"❖";position:absolute;top:50%;transform:translateY(-50%);color:var(--gold);font-size:18px;opacity:.85}
+#qcard:before{left:12px}#qcard:after{right:12px}
+.tag{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.5px;color:#2a1405;background:linear-gradient(90deg,var(--gold),#ffe38a);padding:2px 12px;border-radius:99px}
+#qtext{font-size:clamp(17px,3.4vw,25px);font-weight:600;margin-top:4px;line-height:1.35;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+#qhint{font-size:12px;opacity:.7;margin-top:3px}
+#stats{position:absolute;left:12px;top:12px;padding:10px 14px;font-size:14px;line-height:1.7;min-width:150px}
+#stats b{color:var(--gold);font-weight:800;font-size:17px}
+#board{position:absolute;right:12px;top:12px;padding:10px 14px;width:190px;font-size:13px}
+#board h4{margin:0 0 4px;font-weight:600;color:var(--gold);font-size:13px;letter-spacing:.5px}
+#board ol{margin:0;padding:0;list-style:none}
+#board li{display:flex;justify-content:space-between;gap:8px;padding:1px 0;white-space:nowrap}
+#board li span:first-child{overflow:hidden;text-overflow:ellipsis}
+#board li.me{color:var(--gold);font-weight:700}
+#mini{position:absolute;right:12px;bottom:12px;width:150px;height:150px;border-radius:50%}
+#toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);opacity:0;transition:.25s;max-width:min(92vw,560px);
+  padding:10px 20px;border-radius:14px;font-size:16px;font-weight:600;text-align:center;background:rgba(20,10,50,.9);border:2px solid var(--line)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--jade);color:#b8ffe6}
+#toast.bad{border-color:var(--ruby);color:#ffc2c8}
+#toast.info{border-color:var(--gold);color:#fff1bf}
+.hudbtn{pointer-events:auto;position:absolute;border:2px solid var(--line);background:var(--panel);color:#fff;border-radius:50%;font-family:var(--font);cursor:pointer}
+#boostBtn{left:18px;bottom:22px;width:84px;height:84px;font-size:17px;font-weight:800;color:var(--gold);display:none}
+#boostBtn:active{background:rgba(246,201,69,.3)}
+#muteBtn{left:12px;top:150px;width:40px;height:40px;font-size:18px}
+
+/* ---------- Overlay / เมนู ---------- */
+.overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto;
+  background:radial-gradient(ellipse at 50% 20%,rgba(70,30,130,.55),rgba(8,4,24,.88) 70%)}
+.card{position:relative;width:min(94vw,640px);padding:26px 26px 22px;border-radius:26px;text-align:center;
+  background:linear-gradient(160deg,rgba(52,24,100,.95),rgba(18,9,44,.96));border:2.5px solid var(--gold);
+  box-shadow:0 20px 60px rgba(0,0,0,.6),inset 0 0 0 6px rgba(246,201,69,.08),0 0 60px rgba(246,201,69,.12);animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.card:before,.card:after{content:"";position:absolute;left:18px;right:18px;height:10px;opacity:.7;
+  background:radial-gradient(circle,var(--gold) 2px,transparent 2.5px) 0 50%/16px 10px repeat-x}
+.card:before{top:8px}.card:after{bottom:8px}
+@keyframes pop{from{transform:scale(.88);opacity:0}to{transform:none;opacity:1}}
+h1{margin:6px 0 0;font-size:clamp(40px,9vw,64px);font-weight:800;line-height:1.1;
+  background:linear-gradient(180deg,#fff3b0,var(--gold) 45%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(120,40,0,.55)) drop-shadow(0 0 18px rgba(246,201,69,.35))}
+.sub{margin:2px 0 14px;font-size:14px;color:#e8d9ff;opacity:.9;letter-spacing:.5px}
+.orn{color:var(--gold);letter-spacing:8px;font-size:14px;margin:4px 0 10px;opacity:.9}
+label.t{display:block;text-align:left;font-size:13px;color:var(--gold);margin:12px 0 6px;font-weight:600}
+input#name{width:100%;padding:11px 16px;border-radius:14px;border:2px solid var(--line);background:rgba(255,255,255,.08);color:#fff;font-family:var(--font);font-size:17px;outline:none;text-align:center}
+input#name:focus{border-color:var(--gold);background:rgba(255,255,255,.14)}
+#skins{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.skin{width:44px;height:44px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:.15s;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.skin:hover{transform:scale(1.1)}
+.skin.on{border-color:#fff;transform:scale(1.12);box-shadow:0 0 0 3px var(--gold),0 3px 14px rgba(0,0,0,.5)}
+#chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.chip{font-family:var(--font);font-size:14px;padding:6px 14px;border-radius:99px;cursor:pointer;color:#e8d9ff;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.25);transition:.15s}
+.chip.on{color:#2a1405;font-weight:600;background:linear-gradient(90deg,var(--gold),#ffe38a);border-color:var(--gold)}
+.btn{margin-top:18px;font-family:var(--font);font-size:22px;font-weight:800;color:#3a1604;padding:12px 44px;border:none;border-radius:99px;cursor:pointer;
+  background:linear-gradient(180deg,#ffe58f,var(--gold) 55%,var(--gold2));box-shadow:0 5px 0 #9a4b10,0 10px 24px rgba(0,0,0,.4);transition:.12s}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.07)}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #9a4b10}
+.btn.alt{font-size:17px;padding:9px 26px;margin-left:8px;color:#fff;background:linear-gradient(180deg,#7a55d6,#4b2aa0);box-shadow:0 5px 0 #2b1565,0 10px 24px rgba(0,0,0,.4)}
+.how{margin:16px 0 0;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.06);font-size:13.5px;line-height:1.7;text-align:left;color:#e9defc}
+.how b{color:var(--gold)}
+.hs{margin-top:14px;text-align:left}
+.hs h3{margin:0 0 6px;font-size:15px;color:var(--gold);text-align:center}
+.hs ol{margin:0;padding:0;list-style:none;font-size:14px;counter-reset:r}
+.hs li{counter-increment:r;display:flex;gap:8px;padding:3px 10px;border-radius:8px}
+.hs li:nth-child(odd){background:rgba(255,255,255,.05)}
+.hs li:before{content:counter(r);width:20px;color:var(--gold);font-weight:700}
+.hs li span.n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hs li span.s{color:var(--gold);font-weight:600}
+.hs .empty{text-align:center;opacity:.6;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 4px}
+.grid div{background:rgba(255,255,255,.07);border-radius:14px;padding:10px 4px;font-size:12.5px;color:#d9c9f5}
+.grid b{display:block;font-size:26px;color:var(--gold);font-weight:800;line-height:1.2}
+h2{margin:8px 0 0;font-size:34px;font-weight:800;color:var(--gold)}
+@media (max-width:640px){
+  #board{display:none}#boostBtn{display:block}#stats{top:auto;bottom:12px;left:auto;right:172px;font-size:12px;min-width:0;padding:8px 10px}
+  #muteBtn{left:auto;right:12px;top:auto;bottom:172px}.card{padding:22px 16px 18px}.btn.alt{margin:10px 0 0}
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="qcard">
+    <span class="tag" id="qcat">HTML</span>
+    <div id="qtext">…</div>
+    <div id="qhint">กินคำตอบที่ถูกต้องเพื่อเติบโต • ตอบผิดตัวจะสั้นลง</div>
+  </div>
+  <div id="stats" class="panel">
+    คะแนน <b id="sScore">0</b><br>
+    ความยาว <b id="sLen">0</b><br>
+    ถูกติดกัน <b id="sStreak">0</b> 🔥
+  </div>
+  <div id="board" class="panel"><h4>❖ อันดับสด</h4><ol id="boardList"></ol></div>
+  <canvas id="mini" class="panel" width="150" height="150"></canvas>
+  <button id="muteBtn" class="hudbtn" title="เปิด/ปิดเสียง (M)">🔊</button>
+  <button id="boostBtn" class="hudbtn">เร่ง</button>
+  <div id="toast"></div>
+</div>
+
+<!-- เมนูเริ่มเกม -->
+<div id="menu" class="overlay">
+  <div class="card">
+    <h1>งูโค้ด</h1>
+    <div class="sub">เกมงูฝึกความรู้ HTML เบื้องต้น • HTML Snake Quiz</div>
+    <div class="orn">❖ ❖ ❖</div>
+
+    <label class="t" for="name">ชื่อนักผจญภัย</label>
+    <input id="name" maxlength="14" placeholder="พิมพ์ชื่อของเจ้า" autocomplete="off">
+
+    <label class="t">เลือกสีงูของเจ้า</label>
+    <div id="skins"></div>
+
+    <label class="t">หมวดโจทย์ที่อยากฝึก</label>
+    <div id="chips">
+      <button type="button" class="chip on" data-cat="basic">โครงสร้างหน้าเว็บ</button>
+      <button type="button" class="chip on" data-cat="text">ข้อความและลิงก์</button>
+      <button type="button" class="chip on" data-cat="media">รูปภาพและรายการ</button>
+      <button type="button" class="chip on" data-cat="form">ตารางและฟอร์ม</button>
+    </div>
+
+    <button class="btn" id="startBtn">เริ่มผจญภัย</button>
+
+    <div class="how">
+      <b>วิธีเล่น:</b> ขยับเมาส์/นิ้วเพื่อบังคับทิศทาง • กดค้างเมาส์หรือ <b>Space</b> เพื่อเร่งความเร็ว (ตัวจะสั้นลงเล็กน้อย)<br>
+      อ่านคำถาม HTML ด้านบน แล้วพุ่งไปกิน <b>ป้ายคำตอบสีทอง</b> ที่ถูกต้อง — ถูกได้คะแนนและตัวยาวขึ้น ผิดตัวหดและเสียคะแนน<br>
+      กินสัญลักษณ์โค้ดเรืองแสง (&lt; &gt; / = { }) เพื่อโตขึ้น และอย่าให้หัวชนลำตัวของงูตัวอื่นหรือขอบสนาม!
+    </div>
+
+    <div class="hs"><h3>🏆 ทำเนียบผู้กล้า (เครื่องนี้)</h3><ol id="menuScores"><li class="empty">กำลังโหลด…</li></ol></div>
+  </div>
+</div>
+
+<!-- จบเกม -->
+<div id="over" class="overlay hidden">
+  <div class="card">
+    <h2>จบการผจญภัย</h2>
+    <div class="sub" id="overMsg"></div>
+    <div class="grid">
+      <div><b id="oScore">0</b>คะแนน</div>
+      <div><b id="oLen">0</b>ความยาว</div>
+      <div><b id="oRank">-</b>อันดับในสนาม</div>
+      <div><b id="oCorrect">0</b>ตอบถูก</div>
+      <div><b id="oAcc">0%</b>ความแม่นยำ</div>
+      <div><b id="oKills">0</b>ล้มงูได้</div>
+    </div>
+    <button class="btn" id="againBtn">เล่นอีกครั้ง</button>
+    <button class="btn alt" id="menuBtn">กลับเมนู</button>
+    <div class="hs"><h3>🏆 ทำเนียบผู้กล้า (เครื่องนี้)</h3><ol id="overScores"><li class="empty">กำลังโหลด…</li></ol></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const CATS = {"basic": "โครงสร้างหน้าเว็บ", "text": "ข้อความและลิงก์", "media": "รูปภาพและรายการ", "form": "ตารางและฟอร์ม"};
+const BANK = [{"cat": "basic", "q": "แท็กใดใช้ครอบเนื้อหาทั้งหมดของหน้าเว็บ", "a": "<html>", "w": ["<body>", "<head>", "<title>"], "e": "<html> คือรากของเอกสาร ครอบทุกอย่างไว้"}, {"cat": "basic", "q": "แท็กใดใช้แสดงเนื้อหาที่ผู้ใช้มองเห็นบนหน้าเว็บ", "a": "<body>", "w": ["<head>", "<meta>", "<title>"], "e": "<body> เก็บเนื้อหาที่แสดงบนหน้าจอ"}, {"cat": "basic", "q": "แท็กใดกำหนดชื่อที่แสดงบนแท็บของเบราว์เซอร์", "a": "<title>", "w": ["<h1>", "<meta>", "<link>"], "e": "<title> อยู่ใน <head> และแสดงเป็นชื่อแท็บ"}, {"cat": "basic", "q": "บรรทัดแรกของไฟล์ที่บอกเบราว์เซอร์ว่าเป็น HTML5 คือข้อใด", "a": "<!DOCTYPE html>", "w": ["<html5>", "<?html>", "<doctype>"], "e": "<!DOCTYPE html> ประกาศชนิดเอกสาร HTML5"}, {"cat": "basic", "q": "ไฟล์หน้าเว็บ HTML มักมีนามสกุลใด", "a": ".html", "w": [".css", ".js", ".png"], "e": ".html คือไฟล์หน้าเว็บ (.css = สไตล์, .js = สคริปต์)"}, {"cat": "basic", "q": "ส่วนใดเก็บข้อมูลของหน้าเว็บที่ไม่แสดงบนจอ เช่น title และ meta", "a": "<head>", "w": ["<body>", "<footer>", "<main>"], "e": "<head> เก็บข้อมูลประกอบหน้าเว็บ"}, {"cat": "basic", "q": "HTML เป็นภาษาประเภทใด", "a": "ภาษามาร์กอัป", "w": ["ภาษาฐานข้อมูล", "ภาษาเครื่อง", "ภาษาแอสเซมบลี"], "e": "HTML คือภาษามาร์กอัป ใช้กำหนดโครงสร้างของเนื้อหา"}, {"cat": "basic", "q": "แท็กใดเป็นกล่องแบ่งส่วนทั่วไป (ขึ้นบรรทัดใหม่เสมอ)", "a": "<div>", "w": ["<span>", "<b>", "<a>"], "e": "<div> เป็นองค์ประกอบแบบ block ใช้จัดกลุ่มเนื้อหา"}, {"cat": "basic", "q": "แท็กใดใช้ครอบข้อความบางส่วนภายในบรรทัดเดียวกัน", "a": "<span>", "w": ["<div>", "<p>", "<h1>"], "e": "<span> เป็นองค์ประกอบแบบ inline"}, {"cat": "basic", "q": "รูปแบบใดคือคอมเมนต์ใน HTML", "a": "<\u0021-- -->", "w": ["// ข้อความ", "/* ข้อความ */", "# ข้อความ"], "e": "คอมเมนต์ HTML เขียนในรูป <\u0021-- ข้อความ --> เบราว์เซอร์จะไม่แสดงผล"}, {"cat": "text", "q": "แท็กหัวข้อที่ใหญ่ที่สุดคือข้อใด", "a": "<h1>", "w": ["<h6>", "<p>", "<head>"], "e": "<h1> ใหญ่ที่สุด ไล่ลงไปถึง <h6>"}, {"cat": "text", "q": "แท็กหัวข้อที่เล็กที่สุดคือข้อใด", "a": "<h6>", "w": ["<h1>", "<h7>", "<small>"], "e": "หัวข้อมี 6 ระดับ <h1> ถึง <h6>"}, {"cat": "text", "q": "แท็กใดใช้สร้างย่อหน้า", "a": "<p>", "w": ["<br>", "<hr>", "<span>"], "e": "<p> = paragraph (ย่อหน้า)"}, {"cat": "text", "q": "แท็กใดใช้ขึ้นบรรทัดใหม่", "a": "<br>", "w": ["<hr>", "<p>", "<li>"], "e": "<br> = break ขึ้นบรรทัดใหม่"}, {"cat": "text", "q": "แท็กใดใช้ขีดเส้นคั่นแนวนอน", "a": "<hr>", "w": ["<br>", "<line>", "<ul>"], "e": "<hr> = horizontal rule"}, {"cat": "text", "q": "แท็กใดใช้ทำตัวอักษรหนา", "a": "<b>", "w": ["<i>", "<u>", "<br>"], "e": "<b> = bold (ตัวหนา)"}, {"cat": "text", "q": "แท็กใดใช้ทำตัวอักษรเอียง", "a": "<i>", "w": ["<b>", "<u>", "<br>"], "e": "<i> = italic (ตัวเอียง)"}, {"cat": "text", "q": "แท็กใดใช้สร้างลิงก์ไปยังหน้าอื่น", "a": "<a>", "w": ["<link>", "<href>", "<url>"], "e": "<a> = anchor ใช้สร้างลิงก์"}, {"cat": "text", "q": "แอตทริบิวต์ใดบอกปลายทางของลิงก์ใน <a>", "a": "href", "w": ["src", "alt", "name"], "e": "href = hypertext reference (ที่อยู่ปลายทาง)"}, {"cat": "text", "q": "ต้องการเปิดลิงก์ในแท็บใหม่ ใส่แอตทริบิวต์ใด", "a": "target=\"_blank\"", "w": ["target=\"_self\"", "href=\"_blank\"", "new=\"tab\""], "e": "target=\"_blank\" เปิดลิงก์ในแท็บใหม่"}, {"cat": "media", "q": "แท็กใดใช้แสดงรูปภาพ", "a": "<img>", "w": ["<image>", "<photo>", "<picture1>"], "e": "<img> = image"}, {"cat": "media", "q": "แอตทริบิวต์ใดบอกที่อยู่ไฟล์รูปภาพใน <img>", "a": "src", "w": ["href", "alt", "link"], "e": "src = source (แหล่งที่มาของไฟล์รูป)"}, {"cat": "media", "q": "แอตทริบิวต์ใดใส่ข้อความแทนรูป เมื่อรูปโหลดไม่ได้", "a": "alt", "w": ["src", "href", "name"], "e": "alt = alternative text ช่วยโปรแกรมอ่านหน้าจอด้วย"}, {"cat": "media", "q": "แท็กใดสร้างรายการแบบจุด (bullet)", "a": "<ul>", "w": ["<ol>", "<li>", "<dl>"], "e": "<ul> = unordered list (รายการไม่เรียงลำดับ)"}, {"cat": "media", "q": "แท็กใดสร้างรายการแบบมีตัวเลขเรียงลำดับ", "a": "<ol>", "w": ["<ul>", "<li>", "<dd>"], "e": "<ol> = ordered list (รายการเรียงลำดับ)"}, {"cat": "media", "q": "แท็กใดใช้เป็นแต่ละข้อภายในรายการ <ul> หรือ <ol>", "a": "<li>", "w": ["<ul>", "<ol>", "<p>"], "e": "<li> = list item"}, {"cat": "media", "q": "แท็กใดใช้ใส่วิดีโอลงในหน้าเว็บ", "a": "<video>", "w": ["<movie>", "<media>", "<mp4>"], "e": "<video> ใช้ฝังวิดีโอ"}, {"cat": "media", "q": "แท็กใดไม่ต้องมีแท็กปิด", "a": "<br>", "w": ["<p>", "<div>", "<a>"], "e": "<br> เป็นแท็กเดี่ยว (void element) ไม่มีแท็กปิด"}, {"cat": "form", "q": "แท็กใดใช้สร้างตาราง", "a": "<table>", "w": ["<tab>", "<grid>", "<tr>"], "e": "<table> ครอบตารางทั้งหมด"}, {"cat": "form", "q": "แท็กใดใช้สร้างแถวในตาราง", "a": "<tr>", "w": ["<td>", "<th>", "<row>"], "e": "<tr> = table row"}, {"cat": "form", "q": "แท็กใดใช้สร้างช่องข้อมูลในตาราง", "a": "<td>", "w": ["<tr>", "<table>", "<cell>"], "e": "<td> = table data (เซลล์ข้อมูล)"}, {"cat": "form", "q": "แท็กใดใช้สร้างเซลล์หัวตาราง (ตัวหนา กึ่งกลาง)", "a": "<th>", "w": ["<td>", "<head>", "<tr>"], "e": "<th> = table header"}, {"cat": "form", "q": "แท็กใดใช้ครอบแบบฟอร์มสำหรับกรอกข้อมูล", "a": "<form>", "w": ["<input>", "<label>", "<submit>"], "e": "<form> ครอบช่องกรอกข้อมูลทั้งหมด"}, {"cat": "form", "q": "แท็กใดใช้สร้างช่องให้ผู้ใช้กรอกข้อมูล", "a": "<input>", "w": ["<field>", "<textbox>", "<enter>"], "e": "<input> ใช้สร้างช่องกรอก เปลี่ยนชนิดด้วย type"}, {"cat": "form", "q": "แท็กใดใช้สร้างปุ่มกด", "a": "<button>", "w": ["<btn>", "<click>", "<press>"], "e": "<button> ใช้สร้างปุ่ม"}, {"cat": "form", "q": "แท็กใดใช้เขียนป้ายกำกับให้ช่องกรอก", "a": "<label>", "w": ["<name>", "<caption>", "<tag>"], "e": "<label> ผูกข้อความกับช่องกรอก"}, {"cat": "form", "q": "ช่องกรอกรหัสผ่าน ใช้ type ใด", "a": "password", "w": ["secret", "pass", "hide"], "e": "<input type=\"password\"> จะแสดงตัวอักษรเป็นจุด"}, {"cat": "form", "q": "<input> type ใดให้ติ๊กเลือกได้หลายข้อ", "a": "checkbox", "w": ["radio", "select", "text"], "e": "checkbox เลือกได้หลายข้อ ส่วน radio เลือกได้ข้อเดียว"}];
+
+/* ---------- ตัวช่วยพื้นฐาน ---------- */
+const $ = s => document.querySelector(s);
+const canvas = $('#game'), ctx = canvas.getContext('2d');
+const mini = $('#mini'), mctx = mini.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+}
+addEventListener('resize', resize); resize();
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const TAU = Math.PI * 2;
+const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
+const d2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
+function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const pick = a => a[(Math.random() * a.length) | 0];
+
+/* ---------- ค่าคงที่ของเกม ---------- */
+const WORLD_R = 2800, SP = 9, BASE = 175, BOOST = 310, TURN = 5.2, MIN_LEN = 8, START_LEN = 14;
+const MIN_FOOD = 680, BOT_COUNT = 10;
+const FONT = "Kanit, Sarabun, sans-serif";
+const TH = ['<','>','/','=','"','#','{','}',';','&','a','p','h','1','2','3'];
+const FOODCOL = ['#ffd166', '#ff6b8a', '#3be0b0', '#5ab8ff', '#ff9e6b', '#c995ff'];
+const BOT_NAMES = ['<div>','<span>','<body>','<head>','<html>','<table>','<form>','<input>','<button>','<img>','<link>','<style>','<nav>','<ul>'];
+
+const SKINS = [
+  { name:'ทองอร่าม', c:['#f6c945','#e8912d'] },
+  { name:'หยกมรกต',  c:['#3be0b0','#0f9d7a'] },
+  { name:'ทับทิม',    c:['#ff6b7f','#c1121f'] },
+  { name:'ไพลิน',    c:['#6bb6ff','#2f5fd0'] },
+  { name:'บัวชมพู',   c:['#ff9ad5','#c44fa0'] },
+  { name:'อเมทิสต์',  c:['#b58cff','#6d3fd1'] },
+];
+
+
+/* ---------- เสียง (WebAudio เล็ก ๆ) ---------- */
+let AC = null, muted = false;
+function beep(f, d, type = 'sine', v = .07, slide = 0, delay = 0){
+  if (muted) return;
+  try{
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t0);
+    if (slide) o.frequency.linearRampToValueAtTime(f + slide, t0 + d);
+    g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + d);
+  }catch(e){}
+}
+const sfxOk   = () => { beep(660, .14, 'triangle', .09); beep(880, .2, 'triangle', .09, 0, .09); beep(1320, .25, 'triangle', .07, 0, .18); };
+const sfxBad  = () => beep(200, .28, 'sawtooth', .07, -90);
+const sfxDie  = () => { beep(160, .5, 'square', .07, -110); beep(90, .6, 'sawtooth', .06, -50, .1); };
+
+/* ---------- พื้นหลังลายไทย (สร้างครั้งเดียว) ---------- */
+function makeTile(){
+  const c = document.createElement('canvas'); c.width = c.height = 140;
+  const g = c.getContext('2d'); g.translate(70, 70);
+  g.strokeStyle = 'rgba(246,201,69,.11)'; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(0,-70); g.lineTo(70,0); g.lineTo(0,70); g.lineTo(-70,0); g.closePath(); g.stroke();
+  g.beginPath(); g.moveTo(0,-44); g.lineTo(44,0); g.lineTo(0,44); g.lineTo(-44,0); g.closePath(); g.stroke();
+  g.fillStyle = 'rgba(246,201,69,.10)';
+  for (let i = 0; i < 8; i++){ g.save(); g.rotate(i * Math.PI / 4); g.beginPath(); g.ellipse(0,-17,6,14,0,0,TAU); g.fill(); g.restore(); }
+  g.fillStyle = 'rgba(255,130,170,.22)'; g.beginPath(); g.arc(0,0,5,0,TAU); g.fill();
+  g.fillStyle = 'rgba(246,201,69,.14)';
+  for (const [x,y] of [[-70,-70],[70,-70],[-70,70],[70,70]]){ g.beginPath(); g.arc(x,y,5,0,TAU); g.fill(); }
+  return c;
+}
+const tile = makeTile();
+const pattern = ctx.createPattern(tile, 'repeat');
+
+/* ---------- สถานะเกม ---------- */
+let mode = 'menu';              // menu | play | over
+let t = 0, shake = 0;
+let snakes = [], foods = [], particles = [], answers = [], respawns = [];
+let player = null;
+let questions = [], qi = 0, curQ = null;
+let stats = { correct: 0, wrong: 0, streak: 0, kills: 0 };
+let cam = { x: 0, y: 0, z: 1 };
+let mouse = { x: innerWidth / 2, y: innerHeight / 2 };
+let boostHeld = false, hudTimer = 0, toastTimer = null;
+let playerName = 'นักเดินทาง', skinIdx = 0;
+
+/* ---------- อาหาร (อักษรไทยเรืองแสง) ---------- */
+function addFood(x, y, col, v = 1, r){
+  foods.push({ x, y, v, r: r || (6 + Math.random() * 2.2 + v * 1.2), col, ch: pick(TH), ph: Math.random() * TAU });
+}
+function inWorld(margin = 140){
+  const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * (WORLD_R - margin);
+  return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+}
+function spawnRandomFood(){ const p = inWorld(); addFood(p.x, p.y, pick(FOODCOL), 1); }
+
+/* ---------- งู ---------- */
+class Snake{
+  constructor(x, y, o){
+    this.name = o.name; this.skin = o.skin; this.isPlayer = !!o.isPlayer; this.aggr = o.aggr || 0;
+    this.angle = rand(0, TAU); this.target = this.angle; this.boost = false; this.boostOn = false;
+    this.segs = []; const n = o.len || START_LEN;
+    for (let i = 0; i < n; i++) this.segs.push({ x: x - Math.cos(this.angle) * i * SP, y: y - Math.sin(this.angle) * i * SP });
+    this.grow = 0; this.drain = 0; this.score = 0; this.dead = false;
+    this.think = Math.random() * .3; this.wander = this.angle;
+  }
+  get head(){ return this.segs[0]; }
+  get r(){ return 10 + Math.min(12, this.segs.length * 0.045); }
+  step(dt){
+    this.boostOn = this.boost && this.segs.length > MIN_LEN + 1;
+    const sp = this.boostOn ? BOOST : BASE;
+    const mt = TURN * dt * (this.boostOn ? .75 : 1);
+    this.angle += clamp(angDiff(this.angle, this.target), -mt, mt);
+    const h = this.segs[0];
+    h.x += Math.cos(this.angle) * sp * dt; h.y += Math.sin(this.angle) * sp * dt;
+    for (let i = 1; i < this.segs.length; i++){
+      const p = this.segs[i - 1], s = this.segs[i];
+      const dx = p.x - s.x, dy = p.y - s.y, dd = Math.hypot(dx, dy);
+      if (dd > SP){ const k = (dd - SP) / dd; s.x += dx * k; s.y += dy * k; }
+    }
+    if (this.grow >= 1){
+      const n = Math.floor(this.grow), tl = this.segs[this.segs.length - 1];
+      for (let i = 0; i < n; i++) this.segs.push({ x: tl.x, y: tl.y });
+      this.grow -= n;
+    }
+    if (this.boostOn){
+      this.drain += dt;
+      if (this.drain > .14){
+        this.drain = 0;
+        const tl = this.segs.pop();
+        addFood(tl.x + rand(-6, 6), tl.y + rand(-6, 6), this.skin.c[0], 1, 6);
+      }
+    } else this.drain = 0;
+  }
+}
+
+function safeSpawn(){
+  for (let k = 0; k < 25; k++){
+    const p = inWorld(500); let ok = true;
+    for (const s of snakes){
+      if (s.dead) continue;
+      for (let i = 0; i < s.segs.length; i += 3) if (d2(p.x, p.y, s.segs[i].x, s.segs[i].y) < 260 * 260){ ok = false; break; }
+      if (!ok) break;
+    }
+    if (ok) return p;
+  }
+  return inWorld(500);
+}
+function makeBot(){
+  const p = safeSpawn();
+  snakes.push(new Snake(p.x, p.y, { name: pick(BOT_NAMES), skin: pick(SKINS), len: 10 + ((Math.random() * 30) | 0), aggr: Math.random() < .4 ? 1 : 0 }));
+}
+
+/* ---------- AI ของงูบอท ---------- */
+function botThink(b, dt){
+  b.think -= dt; if (b.think > 0) return;
+  b.think = rand(.12, .3);
+  const h = b.head; b.wander += rand(-.7, .7);
+  let ang = b.wander, best = null, bs = 380 * 380;
+  for (const f of foods){
+    const dx = f.x - h.x; if (dx > 380 || dx < -380) continue;
+    const d = d2(h.x, h.y, f.x, f.y), sc = d / (1 + f.v * .8);
+    if (sc < bs){ bs = sc; best = f; }
+  }
+  if (best) ang = Math.atan2(best.y - h.y, best.x - h.x);
+  let chasing = false;
+  if (b.aggr && player && !player.dead && player.segs.length < b.segs.length * .9){
+    const ph = player.head;
+    if (d2(h.x, h.y, ph.x, ph.y) < 600 * 600){
+      ang = Math.atan2(ph.y + Math.sin(player.angle) * 170 - h.y, ph.x + Math.cos(player.angle) * 170 - h.x);
+      chasing = d2(h.x, h.y, ph.x, ph.y) < 330 * 330;
+    }
+  }
+  if (Math.hypot(h.x, h.y) > WORLD_R - 280) ang = Math.atan2(-h.y, -h.x);
+  const ax = h.x + Math.cos(b.angle) * 75, ay = h.y + Math.sin(b.angle) * 75;
+  let av = null, ad = Infinity;
+  for (const o of snakes){
+    if (o === b || o.dead) continue;
+    for (let i = 0; i < o.segs.length; i += 2){
+      const s = o.segs[i], d = d2(ax, ay, s.x, s.y);
+      if (d < ad){ ad = d; av = s; }
+    }
+  }
+  const lim = b.r * 2 + 30;
+  if (av && ad < lim * lim){ ang = Math.atan2(h.y - av.y, h.x - av.x); b.think = .08; chasing = false; }
+  b.target = ang;
+  b.boost = chasing && b.segs.length > 20;
+}
+
+/* ---------- โจทย์ / ป้ายคำตอบ ---------- */
+function rrect(x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function nextQuestion(){
+  if (!questions.length) return;
+  if (qi >= questions.length){ shuffle(questions); qi = 0; }
+  curQ = questions[qi++];
+  const opts = shuffle([{ text: curQ.a, ok: true }, ...curQ.w.slice(0, 3).map(w => ({ text: w, ok: false }))]);
+  answers = [];
+  const base = Math.random() * TAU, ph = player ? player.head : { x: 0, y: 0 };
+  opts.forEach((o, i) => {
+    const a = base + i * TAU / opts.length + rand(-.3, .3), r = rand(430, 820);
+    let x = ph.x + Math.cos(a) * r, y = ph.y + Math.sin(a) * r;
+    const d = Math.hypot(x, y), lim = WORLD_R - 170;
+    if (d > lim){ x *= lim / d; y *= lim / d; }
+    answers.push({ x, y, text: o.text, ok: o.ok, w: 120, ph: Math.random() * TAU, dir: Math.random() * TAU });
+  });
+  $('#qcat').textContent = CATS[curQ.cat] || 'HTML';
+  $('#qtext').textContent = curQ.q;
+}
+
+/* ---------- เอฟเฟกต์ ---------- */
+function burst(x, y, col, n = 26, sp = 220){
+  for (let i = 0; i < n; i++){
+    const a = Math.random() * TAU, v = rand(.2, 1) * sp;
+    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(.5, 1), max: 1, col, s: rand(2.5, 6) });
+  }
+}
+function toast(msg, kind = 'info', ms = 2800){
+  const el = $('#toast'); el.textContent = msg; el.className = 'show ' + kind;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+/* ---------- ผลตอบ ---------- */
+function onCorrect(o){
+  stats.correct++; stats.streak++;
+  const pts = 100 + Math.min(stats.streak, 10) * 20;
+  player.score += pts; player.grow += 6;
+  burst(o.x, o.y, '#ffe38a', 40, 300); burst(o.x, o.y, '#3be0b0', 18, 200);
+  toast('✔ ถูกต้อง! +' + pts + '  ' + curQ.e, 'ok', 3400);
+  sfxOk(); nextQuestion();
+}
+function onWrong(o){
+  stats.wrong++; stats.streak = 0;
+  player.score = Math.max(0, player.score - 30);
+  for (let k = 0; k < 3 && player.segs.length > MIN_LEN; k++){
+    const tl = player.segs.pop(); addFood(tl.x, tl.y, pick(FOODCOL), 1, 6);
+  }
+  shake = .45; burst(o.x, o.y, '#ff6b7f', 22, 240);
+  toast('✘ ยังไม่ใช่นะ ลองหาคำตอบอีกครั้ง!', 'bad', 2200);
+  sfxBad();
+}
+
+/* ---------- ตายและเกิดใหม่ ---------- */
+function kill(s, killer){
+  if (s.dead) return;
+  s.dead = true;
+  for (let i = 0; i < s.segs.length; i += 2){
+    const p = s.segs[i]; addFood(p.x + rand(-10, 10), p.y + rand(-10, 10), s.skin.c[i % 2], 3, 8 + Math.random() * 3);
+  }
+  burst(s.head.x, s.head.y, s.skin.c[0], 30, 280);
+  if (s.isPlayer){ sfxDie(); shake = .7; setTimeout(gameOver, 900); }
+  else {
+    respawns.push({ t: rand(2.5, 5) });
+    if (killer && killer.isPlayer){
+      stats.kills++; killer.score += 50; toast('⚔ เจ้าโค่น ' + s.name + ' ได้! +50', 'info', 2200);
+    }
+  }
+}
+
+/* ---------- เริ่ม / รีเซ็ตโลก ---------- */
+function resetWorld(withPlayer){
+  foods = []; snakes = []; particles = []; answers = []; respawns = []; player = null;
+  stats = { correct: 0, wrong: 0, streak: 0, kills: 0 };
+  while (foods.length < MIN_FOOD) spawnRandomFood();
+  for (let i = 0; i < BOT_COUNT; i++) makeBot();
+  if (withPlayer){
+    const p = safeSpawn();
+    player = new Snake(p.x * .4, p.y * .4, { name: playerName, skin: SKINS[skinIdx], isPlayer: true });
+    snakes.push(player);
+    cam.x = player.head.x; cam.y = player.head.y; cam.z = 1;
+  }
+}
+
+async function startGame(){
+  const cats = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.cat);
+  let list = BANK.filter(q => !cats.length || cats.includes(q.cat));
+  if (!list.length) list = BANK.slice();
+  questions = shuffle(list.slice()); qi = 0;
+  playerName = ($('#name').value || '').trim().slice(0, 14) || 'นักเดินทาง';
+  try{ localStorage.setItem('htmlsnake_name', playerName); localStorage.setItem('htmlsnake_skin', String(skinIdx)); }catch(e){}
+  resetWorld(true);
+  nextQuestion();
+  $('#menu').classList.add('hidden'); $('#over').classList.add('hidden'); $('#hud').classList.remove('hidden');
+  mode = 'play';
+  toast('ขยับเมาส์เพื่อนำทาง แล้วกินคำตอบ HTML ที่ถูกต้อง!', 'info', 3000);
+}
+
+function backToMenu(){
+  mode = 'menu'; resetWorld(false);
+  $('#over').classList.add('hidden'); $('#hud').classList.add('hidden'); $('#menu').classList.remove('hidden');
+  loadScores('#menuScores');
+}
+
+/* ---------- กระดานคะแนน (PHP) ---------- */
+function renderScores(sel, list){
+  const ol = $(sel); ol.innerHTML = '';
+  if (!list || !list.length){ const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'ยังไม่มีผู้ทำคะแนน — เป็นคนแรกเลย!'; ol.appendChild(li); return; }
+  list.slice(0, 8).forEach(e => {
+    const li = document.createElement('li');
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = e.name;
+    const s = document.createElement('span'); s.className = 's'; s.textContent = Number(e.score).toLocaleString('th-TH');
+    li.append(n, s); ol.appendChild(li);
+  });
+}
+function getScores(){
+  try{ const d = JSON.parse(localStorage.getItem('htmlsnake_scores') || '[]'); return Array.isArray(d) ? d : []; }catch(e){ return []; }
+}
+function loadScores(sel){ renderScores(sel, getScores()); }
+function saveScore(){
+  const list = getScores();
+  list.push({ name: playerName, score: Math.floor(player.score), length: player.segs.length, correct: stats.correct, kills: stats.kills });
+  list.sort((a, b) => b.score - a.score);
+  try{ localStorage.setItem('htmlsnake_scores', JSON.stringify(list.slice(0, 50))); }catch(e){}
+  loadScores('#overScores');
+}
+
+function gameOver(){
+  if (mode !== 'play') return;
+  mode = 'over';
+  const alive = snakes.filter(s => !s.dead).concat([player]);
+  alive.sort((a, b) => b.score - a.score);
+  const total = stats.correct + stats.wrong;
+  $('#oScore').textContent = Math.floor(player.score).toLocaleString('th-TH');
+  $('#oLen').textContent = player.segs.length;
+  $('#oRank').textContent = '#' + (alive.indexOf(player) + 1);
+  $('#oCorrect').textContent = stats.correct;
+  $('#oAcc').textContent = total ? Math.round(stats.correct / total * 100) + '%' : '-';
+  $('#oKills').textContent = stats.kills;
+  $('#overMsg').textContent = stats.correct >= 8 ? 'ยอดเยี่ยม! เจ้าคือเซียน HTML ตัวจริง' : stats.correct >= 3 ? 'เก่งมาก! ลองอีกครั้งเพื่อทำคะแนนให้สูงกว่าเดิม' : 'ไม่เป็นไร ฝึกอีกนิดแล้วจะเขียน HTML เก่งขึ้นแน่นอน';
+  $('#hud').classList.add('hidden'); $('#over').classList.remove('hidden');
+  $('#overScores').innerHTML = '<li class="empty">กำลังบันทึก…</li>';
+  saveScore();
+}
+
+/* ---------- อัปเดตเกม ---------- */
+function eatFood(s){
+  const h = s.head, rr = s.r + 14;
+  for (let i = foods.length - 1; i >= 0; i--){
+    const f = foods[i], lim = rr + f.r, dx = f.x - h.x;
+    if (dx > lim || dx < -lim) continue;
+    const dy = f.y - h.y;
+    if (dx * dx + dy * dy < lim * lim){
+      s.grow += f.v * .34; s.score += f.v * 5;
+      foods[i] = foods[foods.length - 1]; foods.pop();
+    }
+  }
+}
+
+function update(dt){
+  const live = mode === 'play' && player && !player.dead;
+  if (live){
+    player.target = Math.atan2(mouse.y - H / 2, mouse.x - W / 2);
+    player.boost = boostHeld;
+  }
+  for (const s of snakes){
+    if (s.dead) continue;
+    if (!s.isPlayer) botThink(s, dt);
+    s.step(dt);
+  }
+  for (const s of snakes) if (!s.dead) eatFood(s);
+  while (foods.length < MIN_FOOD) spawnRandomFood();
+
+  // ป้ายคำตอบ
+  if (live){
+    const h = player.head;
+    ctx.font = '700 24px ' + FONT;
+    for (let i = answers.length - 1; i >= 0; i--){
+      const o = answers[i];
+      o.w = ctx.measureText(o.text).width + 44;
+      o.x += Math.cos(t * .6 + o.dir) * 10 * dt; o.y += Math.sin(t * .5 + o.dir) * 10 * dt;
+      if (Math.hypot(o.x, o.y) > WORLD_R - 120){ o.x *= .995; o.y *= .995; }
+      if (d2(o.x, o.y, h.x, h.y) > 1500 * 1500){
+        const a = Math.random() * TAU, r = rand(500, 800); o.x = h.x + Math.cos(a) * r; o.y = h.y + Math.sin(a) * r;
+        const d = Math.hypot(o.x, o.y), lim = WORLD_R - 170; if (d > lim){ o.x *= lim / d; o.y *= lim / d; }
+      }
+      const hr = player.r * .5;
+      if (Math.abs(h.x - o.x) < o.w / 2 + hr && Math.abs(h.y - o.y) < 23 + hr){
+        answers.splice(i, 1);
+        if (o.ok) onCorrect(o); else onWrong(o);
+        break;
+      }
+    }
+  }
+
+  // ชน
+  for (const s of snakes){
+    if (s.dead) continue;
+    const h = s.head;
+    if (Math.hypot(h.x, h.y) > WORLD_R - 4){ kill(s, null); continue; }
+    for (const o of snakes){
+      if (o === s || o.dead) continue;
+      const reach = o.segs.length * SP + 80;
+      if (d2(h.x, h.y, o.head.x, o.head.y) > reach * reach) continue;
+      const lim = (s.r + o.r) * .7, l2 = lim * lim;
+      let hit = false;
+      for (let i = 1; i < o.segs.length; i++){
+        const p = o.segs[i], dx = p.x - h.x; if (dx > lim || dx < -lim) continue;
+        const dy = p.y - h.y; if (dx * dx + dy * dy < l2){ hit = true; break; }
+      }
+      if (hit){ kill(s, o); break; }
+    }
+  }
+  snakes = snakes.filter(s => !s.dead);
+
+  for (let i = respawns.length - 1; i >= 0; i--){
+    respawns[i].t -= dt;
+    if (respawns[i].t <= 0){ respawns.splice(i, 1); makeBot(); }
+  }
+  for (let i = particles.length - 1; i >= 0; i--){
+    const p = particles[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  shake = Math.max(0, shake - dt);
+
+  // กล้อง
+  let f = null;
+  if (player && !player.dead) f = player.head; else if (mode === 'menu' && snakes[0]) f = snakes[0].head;
+  if (f){
+    cam.x += (f.x - cam.x) * Math.min(1, dt * 8); cam.y += (f.y - cam.y) * Math.min(1, dt * 8);
+  }
+  const len = player && !player.dead ? player.segs.length : 20;
+  const zt = clamp(1.05 - Math.min(.45, len * .0016), .62, 1.05) * (W < 700 ? .8 : 1);
+  cam.z += (zt - cam.z) * Math.min(1, dt * 2);
+
+  hudTimer -= dt; if (hudTimer <= 0){ hudTimer = .25; updateHud(); }
+}
+
+function updateHud(){
+  if (mode !== 'play' || !player) return;
+  $('#sScore').textContent = Math.floor(player.score).toLocaleString('th-TH');
+  $('#sLen').textContent = player.segs.length;
+  $('#sStreak').textContent = stats.streak;
+  const all = snakes.filter(s => !s.dead).sort((a, b) => b.score - a.score);
+  const ol = $('#boardList'); ol.innerHTML = '';
+  const rows = all.slice(0, 5); const rk = all.indexOf(player);
+  if (rk >= 5) rows.push(player);
+  rows.forEach(s => {
+    const li = document.createElement('li'); if (s.isPlayer) li.className = 'me';
+    const a = document.createElement('span'); a.textContent = (all.indexOf(s) + 1) + '. ' + s.name;
+    const b = document.createElement('span'); b.textContent = Math.floor(s.score);
+    li.append(a, b); ol.appendChild(li);
+  });
+}
+
+/* ---------- วาด ---------- */
+const vis = (x, y, m) => Math.abs(x - cam.x) < W / 2 / cam.z + m && Math.abs(y - cam.y) < H / 2 / cam.z + m;
+
+function drawSnake(s){
+  const n = s.segs.length, r = s.r;
+  for (let i = n - 1; i >= 0; i--){
+    const p = s.segs[i]; if (!vis(p.x, p.y, r + 14)) continue;
+    const taper = i > n - 12 ? .55 + .45 * ((n - i) / 12) : 1, rr = r * taper;
+    if (s.boostOn && i % 3 === 0){ ctx.globalAlpha = .18; ctx.fillStyle = s.skin.c[0]; ctx.beginPath(); ctx.arc(p.x, p.y, rr * 1.9, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = s.skin.c[((i / 3) | 0) % 2];
+    ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, TAU); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.stroke();
+    if (i % 3 === 1){ ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.beginPath(); ctx.arc(p.x - rr * .2, p.y - rr * .2, rr * .34, 0, TAU); ctx.fill(); }
+  }
+  const h = s.head; if (!vis(h.x, h.y, 80)) return;
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle), px = -sa, py = ca;
+  // หัว + ชฎา
+  ctx.fillStyle = s.skin.c[0]; ctx.beginPath(); ctx.arc(h.x, h.y, r * 1.12, 0, TAU); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.stroke();
+  for (const k of [-1, 0, 1]){
+    const back = k === 0 ? .78 : .56, rad = k === 0 ? .34 : .26;
+    ctx.fillStyle = '#ffe58f'; ctx.strokeStyle = '#b8620f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(h.x - ca * r * back + px * k * r * .64, h.y - sa * r * back + py * k * r * .64, r * rad, 0, TAU); ctx.fill(); ctx.stroke();
+  }
+  // ลิ้น
+  if (Math.sin(t * 9 + h.x) > 0){
+    const tx = h.x + ca * r * 1.9, ty = h.y + sa * r * 1.9;
+    ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(h.x + ca * r, h.y + sa * r); ctx.lineTo(tx, ty);
+    ctx.lineTo(tx + ca * 5 + px * 5, ty + sa * 5 + py * 5); ctx.moveTo(tx, ty); ctx.lineTo(tx + ca * 5 - px * 5, ty + sa * 5 - py * 5); ctx.stroke();
+  }
+  // ตา
+  for (const sd of [-1, 1]){
+    const ex = h.x + ca * r * .45 + px * sd * r * .55, ey = h.y + sa * r * .45 + py * sd * r * .55;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, r * .38, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#1a0a2e'; ctx.beginPath(); ctx.arc(ex + ca * r * .12, ey + sa * r * .12, r * .2, 0, TAU); ctx.fill();
+  }
+  // ชื่อ
+  ctx.font = '600 15px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(10,4,30,.8)'; ctx.strokeText(s.name, h.x, h.y - r - 14);
+  ctx.fillStyle = s.isPlayer ? '#ffe38a' : '#fff'; ctx.fillText(s.name, h.x, h.y - r - 14);
+}
+
+function drawOrb(o){
+  if (!vis(o.x, o.y, o.w)) return;
+  const y = o.y + Math.sin(t * 2 + o.ph) * 5, w = o.w, h = 46;
+  const g = ctx.createRadialGradient(o.x, y, 5, o.x, y, w * .75);
+  g.addColorStop(0, 'rgba(255,226,120,.38)'); g.addColorStop(1, 'rgba(255,226,120,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, y, w * .75, 0, TAU); ctx.fill();
+  const pulse = 1 + Math.sin(t * 4 + o.ph) * .03;
+  ctx.save(); ctx.translate(o.x, y); ctx.scale(pulse, pulse);
+  const gg = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+  gg.addColorStop(0, '#fff6c4'); gg.addColorStop(.55, '#f6c945'); gg.addColorStop(1, '#e8912d');
+  rrect(-w / 2, -h / 2, w, h, 23); ctx.fillStyle = gg; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#9a4b10'; ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.7)'; rrect(-w / 2 + 5, -h / 2 + 5, w - 10, h - 10, 18); ctx.stroke();
+  ctx.font = '700 24px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#3b1a05'; ctx.fillText(o.text, 0, 2);
+  ctx.restore();
+}
+
+function draw(){
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#0b0620'; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  const sx = shake > 0 ? rand(-1, 1) * shake * 16 : 0, sy = shake > 0 ? rand(-1, 1) * shake * 16 : 0;
+  ctx.translate(W / 2 + sx, H / 2 + sy); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+
+  // สนาม
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, WORLD_R);
+  g.addColorStop(0, '#2c1860'); g.addColorStop(.7, '#1f1146'); g.addColorStop(1, '#31113f');
+  ctx.beginPath(); ctx.arc(0, 0, WORLD_R, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  ctx.fillStyle = pattern; ctx.fill();
+  ctx.lineWidth = 70; ctx.strokeStyle = 'rgba(230,57,70,.28)'; ctx.stroke();
+  ctx.lineWidth = 8; ctx.strokeStyle = '#f6c945'; ctx.setLineDash([36, 22]); ctx.stroke(); ctx.setLineDash([]);
+
+  // อักษรไทยเรืองแสง
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const f of foods){
+    if (!vis(f.x, f.y, 24)) continue;
+    const pl = 1 + Math.sin(t * 3 + f.ph) * .12;
+    ctx.globalAlpha = .26; ctx.fillStyle = f.col; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 2 * pl, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * pl, 0, TAU); ctx.fill();
+    ctx.font = '700 ' + Math.round(f.r * 1.5) + 'px ' + FONT; ctx.fillStyle = 'rgba(25,10,50,.9)'; ctx.fillText(f.ch, f.x, f.y + 1);
+  }
+
+  for (const o of answers) drawOrb(o);
+  for (const s of snakes) if (!s.dead && !s.isPlayer) drawSnake(s);
+  if (player && !player.dead) drawSnake(player);
+
+  for (const p of particles){
+    ctx.globalAlpha = clamp(p.life, 0, 1); ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ป้ายชี้ทิศคำตอบที่อยู่นอกจอ
+  if (mode === 'play' && player && !player.dead){
+    ctx.font = '600 15px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const arrows = ['→','↘','↓','↙','←','↖','↑','↗'];
+    for (const o of answers){
+      const sx2 = (o.x - cam.x) * cam.z + W / 2, sy2 = (o.y - cam.y) * cam.z + H / 2;
+      if (sx2 > 40 && sx2 < W - 40 && sy2 > 130 && sy2 < H - 40) continue;
+      const dx = sx2 - W / 2, dy = sy2 - H / 2;
+      const mx = Math.max(60, W / 2 - 90), my = Math.max(60, H / 2 - 110);
+      const k = Math.max(Math.abs(dx) / mx, Math.abs(dy) / my);
+      const px = W / 2 + dx / k, py = H / 2 + dy / k;
+      const ang = Math.atan2(dy, dx), ai = ((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8;
+      const label = arrows[ai] + ' ' + o.text, tw = ctx.measureText(label).width + 20;
+      ctx.globalAlpha = .88; rrect(px - tw / 2, py - 15, tw, 30, 15);
+      ctx.fillStyle = 'rgba(25,12,60,.85)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#f6c945'; ctx.stroke();
+      ctx.globalAlpha = 1; ctx.fillStyle = '#ffe9a0'; ctx.fillText(label, px, py + 1);
+    }
+  }
+  if (mode === 'play') drawMini();
+}
+
+function drawMini(){
+  const S = 150, c = S / 2, k = (c - 8) / WORLD_R;
+  mctx.clearRect(0, 0, S, S);
+  mctx.beginPath(); mctx.arc(c, c, c - 3, 0, TAU); mctx.fillStyle = 'rgba(12,6,32,.78)'; mctx.fill();
+  mctx.lineWidth = 2; mctx.strokeStyle = 'rgba(246,201,69,.85)'; mctx.stroke();
+  for (const s of snakes){
+    if (s.dead || s.isPlayer) continue;
+    mctx.fillStyle = s.skin.c[0]; mctx.beginPath(); mctx.arc(c + s.head.x * k, c + s.head.y * k, 2.2, 0, TAU); mctx.fill();
+  }
+  mctx.fillStyle = '#ffd34d';
+  for (const o of answers){ mctx.fillRect(c + o.x * k - 2, c + o.y * k - 2, 4, 4); }
+  if (player && !player.dead){
+    const x = c + player.head.x * k, y = c + player.head.y * k;
+    mctx.strokeStyle = '#fff'; mctx.lineWidth = 1.5; mctx.beginPath(); mctx.arc(x, y, 6 + Math.sin(t * 5) * 1.2, 0, TAU); mctx.stroke();
+    mctx.fillStyle = '#fff'; mctx.beginPath(); mctx.arc(x, y, 3, 0, TAU); mctx.fill();
+  }
+}
+
+/* ---------- ลูปหลัก ---------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now - last) / 1000); last = now; t += dt;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- อินพุต ---------- */
+canvas.addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+canvas.addEventListener('pointerdown', e => { mouse.x = e.clientX; mouse.y = e.clientY; if (e.pointerType === 'mouse') boostHeld = true; });
+addEventListener('pointerup', () => { boostHeld = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('keydown', e => {
+  if (e.code === 'Space' && mode === 'play'){ boostHeld = true; e.preventDefault(); }
+  if (e.code === 'KeyM' && document.activeElement !== $('#name')) toggleMute();
+});
+addEventListener('keyup', e => { if (e.code === 'Space') boostHeld = false; });
+const bb = $('#boostBtn');
+bb.addEventListener('pointerdown', e => { boostHeld = true; e.stopPropagation(); });
+bb.addEventListener('pointerup', () => { boostHeld = false; });
+bb.addEventListener('pointerleave', () => { boostHeld = false; });
+function toggleMute(){ muted = !muted; $('#muteBtn').textContent = muted ? '🔇' : '🔊'; }
+$('#muteBtn').addEventListener('click', toggleMute);
+
+/* ---------- เมนู ---------- */
+const skinBox = $('#skins');
+SKINS.forEach((s, i) => {
+  const d = document.createElement('div'); d.className = 'skin' + (i === 0 ? ' on' : ''); d.title = s.name;
+  d.style.background = 'linear-gradient(135deg,' + s.c[0] + ',' + s.c[1] + ')';
+  d.addEventListener('click', () => { skinIdx = i; skinBox.querySelectorAll('.skin').forEach(x => x.classList.remove('on')); d.classList.add('on'); });
+  skinBox.appendChild(d);
+});
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+  c.classList.toggle('on');
+  if (!document.querySelector('.chip.on')) c.classList.add('on');   // ต้องเลือกอย่างน้อย 1 หมวด
+}));
+try{
+  const n = localStorage.getItem('htmlsnake_name'); if (n) $('#name').value = n;
+  const sk = parseInt(localStorage.getItem('htmlsnake_skin') || '0', 10);
+  if (sk >= 0 && sk < SKINS.length){ skinIdx = sk; skinBox.querySelectorAll('.skin').forEach((x, i) => x.classList.toggle('on', i === sk)); }
+}catch(e){}
+$('#startBtn').addEventListener('click', startGame);
+$('#againBtn').addEventListener('click', startGame);
+$('#menuBtn').addEventListener('click', backToMenu);
+$('#name').addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
+if ('ontouchstart' in window) bb.style.display = 'block';
+
+resetWorld(false);
+loadScores('#menuScores');
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
